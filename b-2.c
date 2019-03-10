@@ -142,6 +142,9 @@ typedef struct strings_union strings_union;
 void print_union(strings_union *);
 
 strings_union * first_union(strings_union * ptr) {
+    if (ptr == NULL) {
+        return NULL;
+    }
     while (ptr->left != NULL) {
         ptr = ptr->left;
     }
@@ -157,11 +160,28 @@ dynamic_string * read_string() {
     return new_string;
 }
 
+void delete_unions(strings_union * ptr) {
+    if (ptr == NULL) {
+        return;
+    }
+    if (ptr->right != NULL) {
+        delete_unions(ptr->right);
+    }
+    if (ptr->data != NULL) {
+        delete_strings_dynamic_array(ptr->data);
+    }
+    free(ptr);
+}
+
 strings_dynamic_array * read_union() {
     char c;
     strings_dynamic_array * new_array = new_strings_dynamic_array();
     while(1) {
         c = getchar();
+        if (c == ' ') {
+            delete_strings_dynamic_array(new_array);
+            return NULL;
+        }
         if (c == ']') {
             return new_array;
         }
@@ -179,6 +199,10 @@ strings_union * new_union(int nesting) {
     new_union->left_operand = '\0';
     new_union->right_operand = '\0';
     new_union->data = read_union();
+    if (new_union->data == NULL) {
+        delete_unions(new_union);
+        return NULL;
+    }
     return new_union;
 }
 
@@ -203,12 +227,18 @@ void synchronize(strings_union * left, strings_union * right) {
     } 
 }
 
+
+
 strings_union * read_input() {
     char c = ' ';
     strings_union * current_ptr = NULL;
     strings_union * new_ptr = NULL;
     int current_nesting = 0;
-    while ((c = getchar()) != EOF) {
+    while ((c = getchar()) != '\n' && c != EOF && c != '\0') {
+        if (c == ' ') {
+            delete_unions(first_union(current_ptr));
+            return NULL;
+        }
         if (c == '(') {
             current_nesting += 1;
             continue;
@@ -220,6 +250,10 @@ strings_union * read_input() {
 
         if (c == '[') {
             new_ptr = new_union(current_nesting);
+            if (new_ptr == NULL) {
+                delete_unions(first_union(current_ptr));
+                return NULL;
+            }
             synchronize(current_ptr, new_ptr);
             current_ptr = new_ptr;
             continue;
@@ -237,6 +271,10 @@ strings_union * read_input() {
             continue;
         }
     }
+    if (current_nesting != 0) {
+        delete_unions(first_union(current_ptr));
+        return NULL;
+    }
     return first_union(current_ptr);
 }
 
@@ -248,13 +286,16 @@ void print_union(strings_union * ptr) {
     size_t i = 0;
     for (i = 0; i < ptr->data->current_lenght; i++)
     {
-        printf("\"%s\",", ptr->data->data[i]->data);
+        if (i != 0) {
+            printf(",");
+        }
+        printf("\"%s\"", ptr->data->data[i]->data);
     }
     if (i == 0) {
         printf("]\n");
     }
     else {
-        printf("\b]\n");
+        printf("]\n");
     }
 }
 
@@ -347,7 +388,6 @@ void all_operations(strings_union * first, int nesting, char operand) {
     strings_union * ptr = first;
     strings_union * swap = NULL;
     while (ptr->right != NULL) {
-
         if (ptr->nesting == nesting && ptr->right->nesting == nesting && ptr->right_operand == operand) {
             strings_dynamic_array * result = operation(ptr, ptr->right);
             delete_strings_dynamic_array(ptr->data);
@@ -357,10 +397,8 @@ void all_operations(strings_union * first, int nesting, char operand) {
             ptr->right_operand = ptr->right->right_operand;
             free(ptr->right);
             ptr->right = swap;
-        }
-        ptr = ptr->right;
-        if (ptr == NULL) {
-            break;
+        } else {
+            ptr = ptr->right;
         }
     }
 }
@@ -382,14 +420,16 @@ void solve(strings_union * first) {
     int max = max_nesting(first);
     int i = max;
     for (i = max + 1; i >= 0; i--) {
-        all_operations(first, i, 'U');
         all_operations(first, i, '^');
+        all_operations(first, i, 'U');
         all_operations(first, i, '\\');
         decriment_nesting(first, i);
     }
 }
 
-int compare(const dynamic_string ** a, const dynamic_string ** b) {
+int compare(const void * a_a, const void * b_b) {
+    const dynamic_string ** a = (const dynamic_string **)a_a;
+    const dynamic_string ** b = (const dynamic_string **)b_b;
     int i = 0;
     while ((*a)->current_lenght >= i && (*b)->current_lenght >= i) {
         if ((*a)->data[i] != (*b)->data[i]) {
@@ -402,12 +442,18 @@ int compare(const dynamic_string ** a, const dynamic_string ** b) {
 
 void sort(strings_union * a) {
     strings_dynamic_array * first = a->data;
-    qsort(first->data, first->current_lenght, sizeof(dynamic_string(*)), (int(*)(const dynamic_string ** a, const dynamic_string ** b))compare);
+    qsort(first->data, first->current_lenght, sizeof(dynamic_string(*)), (int(*)(const void * a_a, const void * b_b))compare);
 }
 
 int main() {
     strings_union * first = read_input();
+    if (first == NULL) {
+        printf("[error]\n");
+        return 0;
+    }
     solve(first);
     sort(first);
     print_union(first);
+    delete_strings_dynamic_array(first->data);
+    free(first);
 }
