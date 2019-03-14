@@ -167,7 +167,7 @@ dynamic_string * remove_spases_from_string(const char * old_string) {
 
 strings_dynamic_array * remove_spases(const strings_dynamic_array * input_array) {
     size_t i = 0;
-    dynamic_string * new_string;
+    dynamic_string * new_string = NULL;
     strings_dynamic_array * new_array = new_strings_dynamic_array();
     if (new_array == NULL) {
         return NULL;
